@@ -1,6 +1,6 @@
 # mapbox-playground
 
-> Playing around with Mapbox
+> Playing around with Mapbox. Taken directly from the API examples from https://www.mapbox.com/mapbox-gl-js/api/
 
 ## Build Setup
 

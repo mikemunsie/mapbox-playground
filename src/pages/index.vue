@@ -40,6 +40,12 @@
 </template>
 
 <script>
+//import addPlaces from '../helpers/addPlaces';
+//import addIcon from '../helpers/addIcon';
+//import addCluster from '../helpers/addCluster';
+//import addHeatmap from '../helpers/addHeatmap';
+//import animateLine from '../helpers/animateLine';
+import addLayers from '../helpers/addLayers';
 
 let map;
 
@@ -64,55 +70,108 @@ export default {
       container: 'mapbox',
       center: [-77.04, 38.907],
       zoom: 11.15,
-      style: 'mapbox://styles/mapbox/dark-v9'
+      style: 'mapbox://styles/mapbox/light-v9'
     });
 
-    map.on('click', 'places', function (e) {
-      new mapboxgl.Popup()
-        .setLngLat(e.features[0].geometry.coordinates)
-        .setHTML(e.features[0].properties.description)
-        .addTo(map);
-    });
+    let canvas;
+    const mapboxProps = { map, mapboxgl };
+    const geojson = {
+      "type": "FeatureCollection",
+      "features": [{
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [[0,0]]
+        }
+      }]
+    };
 
-    // Add controls to the map
-    map.addControl(new mapboxgl.NavigationControl());
+    map.on('load', function () {
+      canvas = map.getCanvasContainer();
 
-    // Change cursor to a pointer when you hover over a place
-    map.on('mouseenter', 'places', function () {
-        map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'places', function () {
-        map.getCanvas().style.cursor = '';
-    });
+      //addPlaces(mapboxProps);
+      //addIcons(mapboxProps);
+      // addCluster(mapboxProps);
+      //addHeatmap(mapboxProps);
+      //animateLine(mapboxProps);
+      //addLayers(mapboxProps);
 
-    // Add a few things onto the map
-    map.on('load', function() {
+      // add the line which will be modified in the animation
       map.addLayer({
-        "id": "places",
-        "type": "symbol",
-        "layout": {
-          "icon-image": "{icon}-15",
-          "icon-allow-overlap": true
+        'id': 'line-animation',
+        'type': 'line',
+        'source': {
+          'type': 'geojson',
+          'data': geojson
         },
-        "source": {
-          "type": "geojson",
-          "data": {
-            "type": "FeatureCollection",
-            "features": [{
-              "type": "Feature",
-              "properties": {
-                "description": "<strong>Make it Mount Pleasant</strong><p><a href=\"http://www.mtpleasantdc.com/makeitmtpleasant\" target=\"_blank\" title=\"Opens in a new window\">Make it Mount Pleasant</a> is a handmade and vintage market and afternoon of live entertainment and kids activities. 12:00-6:00 p.m.</p>",
-                "icon": "theatre"
-              },
-              "geometry": {
-                "type": "Point",
-                "coordinates": [-77.038659, 38.931567]
-              }
-            }]
-          }
+        'layout': {
+          'line-cap': 'round',
+          'line-join': 'round'
+        },
+        'paint': {
+          'line-color': '#ed6498',
+          'line-width': 5,
+          'line-opacity': .8
         }
       });
+
+      // Goal: User clicks on the map, adds a point, animates to the next point (should be easy?)
+      animateLine();
+      function animateLine(timestamp) {
+        map.getSource('line-animation').setData(geojson);
+        requestAnimationFrame(animateLine);
+      }
+
+
+      canvas.addEventListener('mousedown', disableDrag, true);
+      window.addEventListener('keydown', changeCursor, true);
+      window.addEventListener('keyup', changeCursor, true);
+
+
     });
+
+    let firstClick = true;
+
+
+    const changeCursor = (e) => {
+       if (!(e.shiftKey)) {
+        canvas.style.cursor = 'pointer';
+        return;
+      }
+      console.log('lets roll')
+      canvas.style.cursor = 'crosshair';
+    }
+
+    // Disable drag while shift is down
+    const disableDrag = (e) => {
+      if (!(e.shiftKey && e.button === 0)) {
+        map.boxZoom.enable();
+        map.dragPan.enable();
+        return;
+      }
+
+      canvas.style.cursor = 'crosshair';
+      map.boxZoom.disable();
+      map.dragPan.disable();
+    }
+
+    map.on('mousedown', function(info) {
+      const { lngLat } = info;
+
+      const e = info.originalEvent;
+
+      // If it's not the shift button, escape
+      if (!(e.shiftKey && e.button === 0)) return;
+
+      if (firstClick) {
+        geojson.features[0].geometry.coordinates[0] = [lngLat.lng, lngLat.lat];
+        firstClick = false;
+      } else {
+        geojson.features[0].geometry.coordinates.push([lngLat.lng, lngLat.lat]);
+      }
+      e.stopPropagation();
+    })
+
   }
 }
 </script>
